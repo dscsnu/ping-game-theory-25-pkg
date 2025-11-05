@@ -3,7 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, List, Type, Tuple
+from typing import Final, Type, List, Tuple
 from tqdm import tqdm
 
 
@@ -50,6 +50,9 @@ class RandomStrategy(Strategy):
 class StrategyTester:
     ROUNDS: Final[int] = 10_000
     TIMEOUT_SECONDS: Final[int] = 60
+    wins: int = 0
+    losses: int = 0
+    draws: int = 0
 
     def __init__(self, strategy_cls: Type[Strategy]) -> None:
         self.strategy_cls = strategy_cls
@@ -78,6 +81,8 @@ class StrategyTester:
         history_self.append(HistoryEntry(self=move_self, other=move_opp))
         history_opp.append(HistoryEntry(self=move_opp, other=move_self))
 
+        print("Testing against RandomStrategy")
+
         for _ in tqdm(range(self.ROUNDS - 1), desc="Running rounds"):
             if time.time() - start_time > StrategyTester.TIMEOUT_SECONDS:
                 raise TimeoutError(
@@ -97,8 +102,24 @@ class StrategyTester:
             history_self.append(HistoryEntry(self=move_self, other=move_opp))
             history_opp.append(HistoryEntry(self=move_opp, other=move_self))
 
+            if (
+                move_self == Move.ROCK
+                and move_opp == Move.SCISSOR
+                or move_self == Move.PAPER
+                and move_opp == Move.ROCK
+                or move_self == Move.SCISSOR
+                and move_opp == Move.ROCK
+            ):
+                self.wins += 1
+            elif move_self != move_opp:
+                self.losses += 1
+            else:
+                self.draws += 1
+
         total_time = time.time() - start_time
-        print(f"✅ PASS: {StrategyTester.ROUNDS} rounds in {total_time:.2f} seconds")
+        print(f"""✅ PASS: {StrategyTester.ROUNDS} rounds in {total_time:.2f} seconds
+              {self.wins} wins, {self.losses} losses, {self.draws} draws
+              """)
 
 
 __all__ = ["History", "HistoryEntry", "Move", "Strategy", "StrategyTester"]
