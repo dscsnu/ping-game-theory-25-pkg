@@ -50,11 +50,11 @@ class RandomStrategy(Strategy):
 class StrategyTester:
     ROUNDS: Final[int] = 10_000
     TIMEOUT_SECONDS: Final[int] = 60
-    wins: int = 0
-    losses: int = 0
-    draws: int = 0
 
     def __init__(self, strategy_cls: Type[Strategy]) -> None:
+        self.wins: int = 0
+        self.losses: int = 0
+        self.draws: int = 0
         self.strategy_cls = strategy_cls
 
     def run(self) -> None:
@@ -68,6 +68,8 @@ class StrategyTester:
         history_self: List[HistoryEntry] = []
         history_opp: List[HistoryEntry] = []
 
+        print("Testing against RandomStrategy")
+
         start_time = time.time()
         try:
             move_self = strategy.begin()
@@ -80,8 +82,6 @@ class StrategyTester:
 
         history_self.append(HistoryEntry(self=move_self, other=move_opp))
         history_opp.append(HistoryEntry(self=move_opp, other=move_self))
-
-        print("Testing against RandomStrategy")
 
         for _ in tqdm(range(self.ROUNDS - 1), desc="Running rounds"):
             if time.time() - start_time > StrategyTester.TIMEOUT_SECONDS:
@@ -117,9 +117,8 @@ class StrategyTester:
                 self.draws += 1
 
         total_time = time.time() - start_time
-        print(f"""✅ PASS: {StrategyTester.ROUNDS} rounds in {total_time:.2f} seconds
-              {self.wins} wins, {self.losses} losses, {self.draws} draws
-              """)
+        print(f"✅ PASS: {StrategyTester.ROUNDS} rounds in {total_time:.2f} seconds")
+        print(f"{self.wins} Wins, {self.losses} Losses, {self.draws} Draws")
 
 
 __all__ = ["History", "HistoryEntry", "Move", "Strategy", "StrategyTester"]
