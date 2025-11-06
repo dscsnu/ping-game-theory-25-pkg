@@ -8,9 +8,8 @@ from tqdm import tqdm
 
 
 class Move(StrEnum):
-    ROCK = "ROCK"
-    PAPER = "PAPER"
-    SCISSOR = "SCISSOR"
+    COOPERATE = "COOPERATE"
+    DEFECT = "DEFECT"
 
 
 @dataclass
@@ -25,20 +24,20 @@ History = Tuple[HistoryEntry, ...]
 class Strategy(ABC):
     @abstractmethod
     def begin(self) -> Move:
-        """ """
+        """Return the first move of the strategy."""
         ...
 
     @abstractmethod
     def turn(self, history: History) -> Move:
-        """ """
+        """Return the next move based on the game history."""
         ...
 
 
 class RandomStrategy(Strategy):
     def __init__(self) -> None:
-        self.author_netid = "ab123"
-        self.strategy_name = "random"
-        self.strategy_description = "random"
+        self.author_netid = ""
+        self.strategy_name = ""
+        self.strategy_description = ""
 
     def begin(self) -> Move:
         return random.choice(list(Move))
@@ -51,10 +50,22 @@ class StrategyTester:
     ROUNDS: Final[int] = 10_000
     TIMEOUT_SECONDS: Final[int] = 60
 
+    # Payoff matrix: (self_payoff, other_payoff)
+    # Format: PAYOFFS[self_move][other_move]
+    PAYOFFS: Final[dict] = {
+        Move.COOPERATE: {
+            Move.COOPERATE: (3, 3),  # Mutual cooperation
+            Move.DEFECT: (0, 5),  # Sucker's payoff
+        },
+        Move.DEFECT: {
+            Move.COOPERATE: (5, 0),  # Temptation to defect
+            Move.DEFECT: (1, 1),  # Mutual defection
+        },
+    }
+
     def __init__(self, strategy_cls: Type[Strategy]) -> None:
-        self.wins: int = 0
-        self.losses: int = 0
-        self.draws: int = 0
+        self.total_score_self: int = 0
+        self.total_score_opp: int = 0
         self.strategy_cls = strategy_cls
 
     def run(self) -> None:
@@ -64,13 +75,12 @@ class StrategyTester:
             raise AssertionError(f"Strategy failed to initialize: {e}")
 
         opponent = RandomStrategy()
-
         history_self: List[HistoryEntry] = []
         history_opp: List[HistoryEntry] = []
 
         print("Testing against RandomStrategy")
-
         start_time = time.time()
+
         try:
             move_self = strategy.begin()
             move_opp = opponent.begin()
@@ -80,8 +90,14 @@ class StrategyTester:
         if not isinstance(move_self, Move):
             raise AssertionError(f"begin() returned invalid type: {type(move_self)}")
 
+        # Record first round
         history_self.append(HistoryEntry(self=move_self, other=move_opp))
         history_opp.append(HistoryEntry(self=move_opp, other=move_self))
+
+        # Calculate payoffs for first round
+        payoff_self, payoff_opp = self.PAYOFFS[move_self][move_opp]
+        self.total_score_self += payoff_self
+        self.total_score_opp += payoff_opp
 
         for _ in tqdm(range(self.ROUNDS - 1), desc="Running rounds"):
             if time.time() - start_time > StrategyTester.TIMEOUT_SECONDS:
@@ -99,26 +115,25 @@ class StrategyTester:
             if not isinstance(move_self, Move):
                 raise AssertionError(f"turn() returned invalid type: {type(move_self)}")
 
+            # Record moves
             history_self.append(HistoryEntry(self=move_self, other=move_opp))
             history_opp.append(HistoryEntry(self=move_opp, other=move_self))
 
-            if (
-                move_self == Move.ROCK
-                and move_opp == Move.SCISSOR
-                or move_self == Move.PAPER
-                and move_opp == Move.ROCK
-                or move_self == Move.SCISSOR
-                and move_opp == Move.ROCK
-            ):
-                self.wins += 1
-            elif move_self != move_opp:
-                self.losses += 1
-            else:
-                self.draws += 1
+            payoff_self, payoff_opp = self.PAYOFFS[move_self][move_opp]
+            self.total_score_self += payoff_self
+            self.total_score_opp += payoff_opp
 
         total_time = time.time() - start_time
+        avg_score_self = self.total_score_self / self.ROUNDS
+        avg_score_opp = self.total_score_opp / self.ROUNDS
+
         print(f"✅ PASS: {StrategyTester.ROUNDS} rounds in {total_time:.2f} seconds")
-        print(f"{self.wins} Wins, {self.losses} Losses, {self.draws} Draws")
+        print(
+            f"Strategy Total Score: {self.total_score_self} (avg: {avg_score_self:.2f})"
+        )
+        print(
+            f"Opponent Total Score: {self.total_score_opp} (avg: {avg_score_opp:.2f})"
+        )
 
 
 __all__ = ["History", "HistoryEntry", "Move", "Strategy", "StrategyTester"]
